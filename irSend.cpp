@@ -2,6 +2,14 @@
 #include "IRremoteInt.h"
 
 //+=============================================================================
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+IRsend::IRsend(int IRsendPin) 
+{
+	IRpin = IRsendPin;
+}
+
+#endif
+
 void  IRsend::sendRaw (const unsigned int buf[],  unsigned int len,  unsigned int hz)
 {
 	// Set IR carrier frequency
@@ -21,8 +29,19 @@ void  IRsend::sendRaw (const unsigned int buf[],  unsigned int len,  unsigned in
 //
 void  IRsend::mark (unsigned int time)
 {
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+	long beginning = micros();
+	while(micros() - beginning < time)
+		{
+		PORT->Group[IROutPort].OUTSET.reg = IROutPinMask;
+		delayMicroseconds(IRhalfPeriodicTime);
+		PORT->Group[IROutPort].OUTCLR.reg = IROutPinMask;
+		delayMicroseconds(IRhalfPeriodicTime);
+		}
+#else
 	TIMER_ENABLE_PWM; // Enable pin 3 PWM output
 	if (time > 0) custom_delay_usec(time);
+#endif
 }
 
 //+=============================================================================
@@ -32,11 +51,13 @@ void  IRsend::mark (unsigned int time)
 //
 void  IRsend::space (unsigned int time)
 {
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+	PORT->Group[IROutPort].OUTCLR.reg = IROutPinMask;
+#else
 	TIMER_DISABLE_PWM; // Disable pin 3 PWM output
+#endif	
 	if (time > 0) IRsend::custom_delay_usec(time);
 }
-
-
 
 
 
@@ -54,7 +75,23 @@ void  IRsend::space (unsigned int time)
 //
 void  IRsend::enableIROut (int khz)
 {
-	// Disable the Timer2 Interrupt (which is used for receiving IR)
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+	NVIC_DisableIRQ(TC3_IRQn);
+	// following code from github.com/markszabo/IRremoteESP8266/blob/master/IRremoteESP8266.cpp
+	// Enables IR output.
+	// The khz value controls the modulation frequency in kilohertz.
+
+	// T = 1/f but we need T/2 in microsecond and f is in kHz
+	IRhalfPeriodicTime = 500/khz;
+	// 38 kHz -> T = 26.31 microsec (periodic time), half of it is 13
+
+	IROutPort = g_APinDescription[IRpin].ulPort;
+	int pin = g_APinDescription[IRpin].ulPin;
+	IROutPinMask = (1ul << pin);
+	pinMode(IRpin, OUTPUT);
+#else
+
+ 	// Disable the Timer2 Interrupt (which is used for receiving IR)
 	TIMER_DISABLE_INTR; //Timer2 Overflow Interrupt
 
 	pinMode(TIMER_PWM_PIN, OUTPUT);
@@ -66,6 +103,7 @@ void  IRsend::enableIROut (int khz)
 	// CS2  = 000: no prescaling
 	// The top value for the timer.  The modulation frequency will be SYSCLOCK / 2 / OCR2A.
 	TIMER_CONFIG_KHZ(khz);
+#endif
 }
 
 //+=============================================================================

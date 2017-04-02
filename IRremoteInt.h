@@ -87,10 +87,15 @@ EXTERN  volatile irparams_t  irparams;
 #	define BLINKLED_ON()   (PORTD |= B00000001)
 #	define BLINKLED_OFF()  (PORTD &= B11111110)
 
+#elif defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+#	define BLINKLED        13
+#	define BLINKLED_ON()  (PORT->Group[0].OUTSET.reg = 0x20000)
+#	define BLINKLED_OFF() (PORT->Group[0].OUTCLR.reg = 0x20000)
+
 #else
 #	define BLINKLED        13
-	#define BLINKLED_ON()  (PORTB |= B00100000)
-#	define BLINKLED_OFF()  (PORTB &= B11011111)
+#	define BLINKLED_ON()  (PORTB |= B00100000)
+#	define BLINKLED_OFF() (PORTB &= B11011111)
 #endif
 
 //------------------------------------------------------------------------------
@@ -220,6 +225,8 @@ EXTERN  volatile irparams_t  irparams;
 
 // Arduino Duemilanove, Diecimila, LilyPad, Mini, Fio, Nano, etc
 // ATmega48, ATmega88, ATmega168, ATmega328
+#elif defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+	//don't define any TIMER
 #else
 	//#define IR_USE_TIMER1   // tx = pin 9
 	#define IR_USE_TIMER2     // tx = pin 3
@@ -630,6 +637,10 @@ EXTERN  volatile irparams_t  irparams;
 // Unknown Timer
 //
 #else
-#	error "Internal code configuration error, no known IR_USE_TIMER# defined\n"
+	#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+		// no TIMER is defined, but that's OK
+	#else
+		# error "Internal code configuration error, no known IR_USE_TIMER# defined\n"
+		#endif
 #endif
 #endif
