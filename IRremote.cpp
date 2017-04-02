@@ -120,10 +120,14 @@ int  MATCH_SPACE (int measured_ticks,  int desired_us)
 // As soon as first MARK arrives:
 //   Gap width is recorded; Ready is cleared; New logging starts
 //
-ISR (TIMER_INTR_NAME)
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+void ISR() 
+{
+#else
+ISR(TIMER_INTR_NAME)
 {
 	TIMER_RESET;
-
+#endif
 	// Read if IR Receiver -> SPACE [xmt LED off] or a MARK [xmt LED on]
 	// digitalRead() is very slow. Optimisation is possible, but makes the code unportable
 	uint8_t  irdata = (uint8_t)digitalRead(irparams.recvpin);
@@ -191,3 +195,17 @@ ISR (TIMER_INTR_NAME)
 				else BLINKLED_OFF() ;   // if no user defined LED pin, turn default LED pin for the hardware on
 	}
 }
+
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+void TC3_Handler() 
+{
+TcCount16* TC = (TcCount16*) TC3;
+// If this interrupt is due to the compare register matching the timer count
+// we toggle the LED.
+if (TC->INTFLAG.bit.MC0 == 1) 
+     {
+     TC->INTFLAG.bit.MC0 = 1;
+     ISR();
+     }
+}
+#endif
