@@ -259,8 +259,12 @@ class IRrecv
 class IRsend
 {
 	public:
-		IRsend () { }
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+		IRsend(int IRsendPin=12);
 
+#else
+		IRsend () { }
+#endif
 		void  custom_delay_usec (unsigned long uSecs);
 		void  enableIROut 		(int khz) ;
 		void  mark        		(unsigned int usec) ;
@@ -339,6 +343,14 @@ class IRsend
 #		if SEND_LEGO_PF
 			void  sendLegoPowerFunctions (uint16_t data, bool repeat = true) ;
 #		endif
+
+#if defined(ARDUINO_ARCH_SAM) || defined(ARDUINO_ARCH_SAMD)
+private:
+  int IRhalfPeriodicTime;
+  int IRpin;
+  EPortType IROutPort;
+  uint32_t IROutPinMask;
+#endif
 } ;
 
 #endif
